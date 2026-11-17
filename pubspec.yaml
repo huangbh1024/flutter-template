@@ -1,0 +1,41 @@
+name: flutter_app_template
+description: "Flutter 应用开发模版：功能分层、Riverpod 状态管理、Material 3 主题，CI 覆盖 Android 与 iOS 打包。"
+# 防止误发布到 pub.dev。
+publish_to: 'none'
+
+# 版本号：<语义化版本>+<构建号>。Android 用 versionName/versionCode，
+# iOS 用 CFBundleShortVersionString/CFBundleVersion。
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.14.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Material 组件库（Flutter 3.47+ 独立发布的 material_ui）。
+  material_ui: ^1.1.0
+  # 状态管理：所有页面状态、依赖注入统一走 Riverpod。
+  flutter_riverpod: ^3.5.0
+  # 日期 / 数字格式化。
+  intl: ^0.20.3
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # 资源与字体按需登记，例如：
+  # assets:
+  #   - assets/images/
+  # fonts:
+  #   - family: AppFont
+  #     fonts:
+  #       - asset: assets/fonts/AppFont-Regular.ttf
+  #         weight: 400

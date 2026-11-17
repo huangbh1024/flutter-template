@@ -1,0 +1,15 @@
+# 静态检查配置。CLAUDE.md 要求 `flutter analyze` 零 issue 才能提交。
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+
+linter:
+  rules:
+    # 模板默认使用官方 lint 集。团队有额外约定时在这里追加，例如：
+    # - prefer_single_quotes
+    # - unawaited_futures
+    # 不要为了绕过检查而大面积 ignore，优先修代码。
