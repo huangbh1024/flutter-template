@@ -46,6 +46,8 @@
 - `.github/workflows/flutter-android.yml`：`verify`（format / analyze / test）
   + Android APK
 - `.github/workflows/flutter-ios.yml`：iOS IPA
+- `.github/workflows/flutter-debug-apk.yml`：`debug/**` 分支或手动触发，
+  构建带 ISpect 调试面板的 profile APK（内测调试用，不是正式包）
 - `.github/workflows/release.yml`：推送 `v*` tag 构建签名 APK / IPA 并创建 Release
 - `.github/actions/setup-flutter/action.yml`：各工作流共用的 Flutter 安装与缓存
 
@@ -63,6 +65,9 @@
   `pubspec.yaml` 的 `version`（不含 `+build`）一致；发布要求配置两端签名
   secrets，缺签名直接失败，不产出未签名 Release。
 - **workflow_dispatch**：手动触发与合并 main 相同，会打 Android + iOS 包。
+- **`debug/**` 分支 / Debug APK 工作流手动触发**：只构建 Android profile APK，
+  必须带 `--dart-define=ISPECT_ENABLED=true`（ISpect 的编译期开关），上传
+  Artifact；profile 用 debug 签名，安装前需先卸载已安装的同名 release 包。
 - 功能分支直接 push 不触发 CI；必须开 PR。
 - 不要随意修改触发条件；如需调整，同步更新 `CONTRIBUTING.md` 与 `docs/CI.md`。
 

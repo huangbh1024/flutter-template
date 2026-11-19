@@ -20,6 +20,7 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 │   ├── workflows/
 │   │   ├── flutter-android.yml # PR verify + main 构建 APK
 │   │   ├── flutter-ios.yml     # main / 手动构建 IPA
+│   │   ├── flutter-debug-apk.yml # debug/** 或手动：带调试面板的 profile APK
 │   │   └── release.yml         # tag 发布签名包 + GitHub Release
 │   └── dependabot.yml         # actions / pub 依赖周更
 ├── .editorconfig              # 编辑器基础设置
@@ -97,6 +98,7 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 | PR 合并进 `main` | 构建 Android APK（arm64）与 iOS IPA，上传 Artifact |
 | 推送 `v*` tag | 构建签名 APK / IPA 并创建 GitHub Release |
 | 只改文档的合并 | 不触发构建 |
+| 推送 `debug/**` 分支 / Debug APK 工作流 | 构建带调试面板的 profile APK（Artifact） |
 | Actions → Run workflow | 手动出 Android / iOS 包 |
 
 ## 开发约定（摘要）

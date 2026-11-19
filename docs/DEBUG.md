@@ -3,7 +3,29 @@
 模板内置 [ISpect](https://pub.dev/packages/ispect) 屏内调试面板，用来替代 web 端的
 vConsole：不连电脑也能在真机 / QA 包上查看日志、异常、Widget 树与导航记录。
 
-## 启用与关闭
+## 通过 CI 出调试包（推荐）
+
+本地无法连接设备时，用 `Flutter Debug APK` 工作流构建自带面板的安装包：
+
+```bash
+# 推一个 debug/** 分支，或对任意分支手动触发
+gh workflow run "Flutter Debug APK" --ref feat/your-branch
+
+# 等运行结束后下载 Artifact
+gh run list --workflow "Flutter Debug APK"
+gh run download <run-id> --dir ~/Downloads
+```
+
+- 构建命令：`flutter build apk --profile --dart-define=ISPECT_ENABLED=true
+  --target-platform android-arm64`；
+- profile 模式 `kReleaseMode=false`，面板可用；Artifact 保留 7 天；
+- **安装前先卸载设备上的旧包**：profile 构建继承 debug 签名，与 main 的
+  release 包签名不同，无法覆盖安装；
+- iOS：未配置签名 secrets 时 CI 只产出未签名 IPA，不能安装。要测 iOS 需先配
+  `IOS_CERTIFICATE_BASE64`、`IOS_PROVISIONING_PROFILE_BASE64` 等 secrets
+  （见 [docs/CI.md](CI.md)），或在 macOS 本机构建。
+
+## 本地开发（能用 `flutter run` 时）
 
 ISpect 的开关是包内的编译期常量
 `const bool kISpectEnabled = bool.fromEnvironment('ISPECT_ENABLED')`，
@@ -35,7 +57,8 @@ VS Code 直接按 F5 选 **App (debug, 含调试面板)** 或
 | --- | --- |
 | `lib/core/debug/debug_panel.dart` | 开关判断、ISpect 初始化、本地化 delegate、导航观察者、`MaterialApp.builder` 包装 |
 | `lib/main.dart` | 用 `runWithDebugPanel(...)` 包住 `runApp` |
-| `tool/run_debug.sh` | 开发启动脚本，默认带 `ISPECT_ENABLED=true` |
+| `.github/workflows/flutter-debug-apk.yml` | CI 构建带面板的 profile APK |
+| `tool/run_debug.sh` | 本地启动脚本，默认带 `ISPECT_ENABLED=true` |
 | `.vscode/launch.json` | VS Code debug / profile 调试配置，默认带面板 |
 | `lib/app/app.dart` | `localizationsDelegates` / `navigatorObservers` / `builder` 三个挂载点 |
 
