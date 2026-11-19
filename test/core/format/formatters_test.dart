@@ -13,10 +13,7 @@ void main() {
     });
 
     test('splitYuanParts 拆分整数与小数部分', () {
-      expect(
-        splitYuanParts(114850),
-        (integer: '1,148', decimal: '.50'),
-      );
+      expect(splitYuanParts(114850), (integer: '1,148', decimal: '.50'));
     });
   });
 

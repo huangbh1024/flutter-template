@@ -67,10 +67,8 @@ class AppTypography {
   );
 
   static TextTheme textTheme(Color color) {
-    TextStyle withColor(TextStyle style) => style.copyWith(
-      color: color,
-      fontFamilyFallback: _fontFamilyFallback,
-    );
+    TextStyle withColor(TextStyle style) =>
+        style.copyWith(color: color, fontFamilyFallback: _fontFamilyFallback);
 
     return TextTheme(
       displaySmall: withColor(displaySmall),

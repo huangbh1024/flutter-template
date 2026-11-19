@@ -72,8 +72,7 @@ String formatDateTimeMinute(DateTime time) {
 String formatMonthLabel(DateTime month) => DateFormat('yyyy年M月').format(month);
 
 /// 日期标签，例如 `2026年11月17日`。
-String formatDateLabel(DateTime date) =>
-    DateFormat('yyyy年M月d日').format(date);
+String formatDateLabel(DateTime date) => DateFormat('yyyy年M月d日').format(date);
 
 const _weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 

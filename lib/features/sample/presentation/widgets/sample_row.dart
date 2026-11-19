@@ -58,9 +58,7 @@ class SampleRow extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             formatYuanDetail(item.amountCents),
-            style: textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),

@@ -66,9 +66,7 @@ class _SampleList extends StatelessWidget {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.all(tokens.pagePadding),
-        children: const [
-          EmptyState(icon: Icons.inbox_rounded, title: '暂无数据'),
-        ],
+        children: const [EmptyState(icon: Icons.inbox_rounded, title: '暂无数据')],
       );
     }
 
@@ -128,8 +126,7 @@ class _SampleList extends StatelessWidget {
             child: Column(
               children: [
                 for (var i = 0; i < group.items.length; i++) ...[
-                  if (i > 0)
-                    Divider(height: 1, color: palette.outlineVariant),
+                  if (i > 0) Divider(height: 1, color: palette.outlineVariant),
                   SampleRow(item: group.items[i]),
                 ],
               ],
