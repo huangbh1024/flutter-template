@@ -72,9 +72,9 @@ Widget (presentation)
 
 ## 本地化
 
-- 应用固定为中文：`MaterialApp` 已配置 `flutter_localizations`、
-  `supportedLocales: [zh_CN, en]`，Material 内置组件（日期选择器、文本
-  选择菜单等）不会回退成英文；
+- 应用固定为中文：`MaterialApp` 使用 material_ui 的
+  `GlobalMaterialLocalizations.delegates`、`supportedLocales: [zh_CN, en]`，
+  Material 内置组件（日期选择器、文本选择菜单等）不会回退成英文；
 - 页面文案目前直接写在组件里。需要多语言时引入 `l10n.yaml` + ARB，
   用生成的 `AppLocalizations` 取文案，并删掉 `App` 里固定的 `locale`。
 
