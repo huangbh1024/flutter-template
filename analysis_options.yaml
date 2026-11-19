@@ -1,15 +1,17 @@
-# 静态检查配置。CLAUDE.md 要求 `flutter analyze` 零 issue 才能提交。
+# 静态检查配置。CLAUDE.md 要求 `dart format` 无 diff、`flutter analyze` 零 issue。
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
     - build/**
-    - android/**
-    - ios/**
+    # 代码生成产物不参与检查。
+    - '**/*.g.dart'
+    - '**/*.freezed.dart'
 
 linter:
   rules:
-    # 模板默认使用官方 lint 集。团队有额外约定时在这里追加，例如：
-    # - prefer_single_quotes
-    # - unawaited_futures
-    # 不要为了绕过检查而大面积 ignore，优先修代码。
+    # 模板默认使用官方 lint 集，以下是团队附加约定。
+    # 新增规则前先修完存量问题，避免 verify 一直红。
+    - prefer_single_quotes
+    - unawaited_futures
+    # 需要 Riverpod 专属检查时再引入 riverpod_lint + custom_lint。

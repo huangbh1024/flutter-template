@@ -88,7 +88,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
         return t < 0.5 ? a : b;
       }
       return [
-        for (var i = 0; i < a.length; i++) BoxShadow.lerp(a[i], b[i], t) ?? a[i],
+        for (var i = 0; i < a.length; i++)
+          BoxShadow.lerp(a[i], b[i], t) ?? a[i],
       ];
     }
 

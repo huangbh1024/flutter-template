@@ -1,3 +1,4 @@
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -20,6 +21,15 @@ class App extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       themeAnimationDuration: const Duration(milliseconds: 250),
+      // 固定中文：Material 内置组件（日期选择器、文本菜单等）不会回退成英文。
+      // 需要多语言时改为 ARB + gen_l10n，并删掉固定的 [locale]。
+      locale: const Locale('zh', 'CN'),
+      supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const AppShell(),
     );
   }
