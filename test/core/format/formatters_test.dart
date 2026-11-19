@@ -34,6 +34,13 @@ void main() {
       expect(parseYuanToCents('12.345'), isNull);
       expect(parseYuanToCents('-1'), isNull);
     });
+
+    test('整数位必须存在且不超过 6 位，小数位不能为空', () {
+      expect(parseYuanToCents('.5'), isNull);
+      expect(parseYuanToCents('123.'), isNull);
+      expect(parseYuanToCents('1234567'), isNull);
+      expect(parseYuanToCents('999999'), 99999900);
+    });
   });
 
   group('日期文案', () {

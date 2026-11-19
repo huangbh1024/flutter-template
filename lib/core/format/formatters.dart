@@ -40,13 +40,14 @@ String formatSignedPercent(double value) {
 
 /// 解析用户输入的元金额为整数分。
 ///
-/// 仅接受 `123`、`123.4`、`123.45`；整数最多 6 位。空串或非法返回 null。
+/// 仅接受 `123`、`123.4`、`123.45`；整数 1~6 位、小数 1~2 位。
+/// 空串、`.5`、`123.` 这类缺少整数位或小数位的输入返回 null。
 int? parseYuanToCents(String raw) {
   final text = raw.trim();
   if (text.isEmpty) {
     return null;
   }
-  final match = RegExp(r'^(\d{0,6})(?:\.(\d{0,2}))?$').firstMatch(text);
+  final match = RegExp(r'^(\d{1,6})(?:\.(\d{1,2}))?$').firstMatch(text);
   if (match == null) {
     return null;
   }

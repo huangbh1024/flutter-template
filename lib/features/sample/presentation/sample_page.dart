@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -20,7 +21,12 @@ class SamplePage extends ConsumerWidget {
 
   Future<void> _refresh(WidgetRef ref) async {
     ref.invalidate(sampleItemsProvider);
-    await ref.read(sampleItemsProvider.future);
+    try {
+      await ref.read(sampleItemsProvider.future);
+    } catch (error) {
+      // 失败态由下面的 error 分支呈现，这里只需结束下拉动画。
+      debugPrint('刷新示例数据失败：$error');
+    }
   }
 
   @override

@@ -16,7 +16,9 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
-    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    // 判断实际生效的亮度：ThemeMode.system 时 provider 的值不是具体颜色，
+    // 直接比较 ThemeMode.dark 会让图标在系统深色下显示反向。
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
