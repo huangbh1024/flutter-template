@@ -13,7 +13,8 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 ├── CONTRIBUTING.md            # 分支、CI、签名、开发流程
 ├── docs/
 │   ├── architecture.md        # 分层、数据流、主题、测试约定
-│   └── CI.md                  # Android / iOS CI 与签名说明
+│   ├── CI.md                  # Android / iOS CI 与签名说明
+│   └── DEBUG.md               # 真机调试面板（ISpect）使用说明
 ├── .github/
 │   ├── actions/setup-flutter/ # 工作流共用：安装 Flutter + 缓存
 │   ├── workflows/
@@ -101,7 +102,9 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 - 页面只通过 provider 取数，仓库接口与 Mock 实现分离；
 - 金额用整数分，日期展示统一走 `core/format`；
 - 颜色 / 间距从 `context.palette` / `context.tokens` 取；
-- 提交前 `dart format` 无 diff、`flutter analyze` 零 issue、`flutter test` 全绿。
+- 提交前 `dart format` 无 diff、`flutter analyze` 零 issue、`flutter test` 全绿；
+- 真机调试面板默认关闭，需要时 `flutter run --dart-define=ISPECT_ENABLED=true`，
+  详见 [docs/DEBUG.md](docs/DEBUG.md)。
 
 完整规则见 [CLAUDE.md](CLAUDE.md)，架构说明见
 [docs/architecture.md](docs/architecture.md)。
