@@ -50,9 +50,18 @@ jobs:
       - name: Test
         run: flutter test
 
-      # analyze 不检查格式；放在最后，先暴露 analyze / test 的问题。
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+      # 临时：输出格式化结果，用于本地对齐 dart format（拿到产物后会恢复为检查）。
+      - name: Format sources (temporary)
+        run: dart format lib test
+
+      - name: Upload formatted sources (temporary)
+        uses: actions/upload-artifact@v7
+        with:
+          name: formatted-sources
+          path: |
+            lib/**
+            test/**
+          retention-days: 1
 
   # ---------- 以下只在合并进 main 或手动触发时执行 ----------
   android:
