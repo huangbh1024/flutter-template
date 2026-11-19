@@ -20,6 +20,12 @@ class App extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       themeAnimationDuration: const Duration(milliseconds: 250),
+      // 固定中文：Material 内置组件（日期选择器、文本菜单等）不会回退成英文。
+      // material_ui 的 delegates 已包含 Material / Widgets / Cupertino 三个 delegate；
+      // 需要多语言时改为 ARB + gen_l10n，并删掉固定的 [locale]。
+      locale: const Locale('zh', 'CN'),
+      supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       home: const AppShell(),
     );
   }

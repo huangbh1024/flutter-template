@@ -13,7 +13,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   # Material 组件库（Flutter 3.47+ 独立发布的 material_ui）。
   material_ui: ^1.1.0
   # 状态管理：所有页面状态、依赖注入统一走 Riverpod。

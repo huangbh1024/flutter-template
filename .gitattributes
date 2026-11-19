@@ -1,0 +1,11 @@
+# 统一按 LF 检出，避免 Windows 上 dart format 产生整文件 diff。
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.jar binary
+*.jks binary
+*.keystore binary
+*.p12 binary
+*.mobileprovision binary

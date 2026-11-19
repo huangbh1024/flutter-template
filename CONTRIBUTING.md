@@ -3,12 +3,13 @@
 ## 环境准备
 
 - Flutter 3.50.0 stable（`flutter --version` 核对）
-- Java 21（Android 构建）
+- JDK 21（Android 构建；`compileOptions` / `jvmTarget` 仍为 17，与 Flutter 默认一致）
 - Android SDK 36 / build-tools 36.0.0
 - macOS + Xcode（仅 iOS 构建需要）
 
 ```bash
 flutter pub get
+dart format lib test
 flutter analyze
 flutter test
 flutter run
@@ -34,6 +35,7 @@ git pull
 git switch -c feat/your-feature
 
 # 开发、提交
+dart format lib test
 flutter analyze
 flutter test
 git add .
@@ -46,15 +48,19 @@ gh pr create --base main --head feat/your-feature --fill
 
 ## CI 规则
 
-- **PR 阶段**：只运行 `flutter pub get`、`flutter analyze`、`flutter test`，**不打包**。
+- **PR 阶段**：只运行 `flutter pub get`、`dart format` 检查、`flutter analyze`、
+  `flutter test`，**不打包**。
 - **合并进 `main` 后**：自动运行完整检查，构建 Android release arm64 APK 与
   iOS IPA，上传到 Actions Artifact。
-- **只改文档时**：合并进 `main` 若只涉及 `**.md`、`docs/**`、`LICENSE`、
-  `.gitignore` 等非代码文件，**不会触发**工作流；需要出包时在 Actions 页面
-  手动 `Run workflow`。
+- **只改文档时**：合并进 `main` 若只涉及 `**.md`、`docs/**`、`.gitignore`、
+  `.gitattributes`、`.editorconfig` 等非代码文件，**不会触发**工作流；需要出包时
+  在 Actions 页面手动 `Run workflow`。
 - **手动触发**：两个工作流都支持 `Run workflow`。
+- **tag 发布**：推送 `v<版本>` tag 触发 `release.yml`，tag 去掉 `v` 后必须与
+  `pubspec.yaml` 的 `version`（不含 `+build`）一致；发布要求配置两端签名
+  secrets，缺少签名会直接失败。
 
-也就是说：**只有 PR 合并进主分支后才产出安装包**。
+也就是说：**只有 PR 合并进主分支后才产出安装包；正式发布走 tag**。
 
 ## 合并要求
 

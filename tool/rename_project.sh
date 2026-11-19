@@ -3,6 +3,7 @@
 #
 # 用法：
 #   tool/rename_project.sh <bundle_id> <display_name> [package_name]
+#   tool/rename_project.sh --dry-run <bundle_id> <display_name> [package_name]
 #
 # 示例：
 #   tool/rename_project.sh com.acme.notes "随手记"
@@ -12,7 +13,8 @@
 # - bundle_id 同时用于 Android applicationId / namespace 与 iOS Bundle ID，
 #   只允许字母、数字和点（不能有下划线或连字符），以保证两端都合法；
 # - display_name 是桌面图标下的名称，可含中文；
-# - package_name 是 Dart 包名（默认取 bundle_id 最后一段），snake_case。
+# - package_name 是 Dart 包名（默认取 bundle_id 最后一段），snake_case；
+# - 加 --dry-run 只打印将要修改的文件，不落盘。
 #
 # 脚本可重复执行：模板标识已被替换时会提示并退出。
 
@@ -28,9 +30,25 @@ OLD_DISPLAY_NAME="Flutter Template"
 OLD_APP_NAME="App 模板"
 
 usage() {
-  sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-1}"
 }
+
+# --dry-run 只预览，不修改磁盘；--help 打印用法。
+DRY_RUN=0
+POSITIONAL=()
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    -h|--help) usage 0 ;;
+    *) POSITIONAL+=("$arg") ;;
+  esac
+done
+if [ ${#POSITIONAL[@]} -gt 0 ]; then
+  set -- "${POSITIONAL[@]}"
+else
+  set --
+fi
 
 if [ $# -lt 2 ] || [ $# -gt 3 ]; then
   usage 1
@@ -82,6 +100,10 @@ replace_in_file() {
   local old="$1" new="$2" file="$3"
   [ -f "$file" ] || return 0
   grep -qF -- "$old" "$file" || return 0
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "  [dry-run] ${file#"$ROOT"/}: ${old} -> ${new}"
+    return 0
+  fi
   local pattern
   pattern="$(escape_pattern "$old")"
   sed -i.bak "s|${pattern}|${new}|g" "$file"
@@ -114,13 +136,19 @@ replace_in_file "$OLD_APP_NAME" "$NEW_DISPLAY_ESCAPED" \
   "$ROOT/lib/core/config/app_config.dart"
 
 # pubspec 的 name 行（前面只替换了字符串，行首 name 不变，这里确认并替换）。
-sed -i.bak "s|^name: ${OLD_PACKAGE}$|name: ${PACKAGE_NAME}|" "$ROOT/pubspec.yaml"
-rm -f "$ROOT/pubspec.yaml.bak"
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "  [dry-run] pubspec.yaml: name: ${OLD_PACKAGE} -> name: ${PACKAGE_NAME}"
+else
+  sed -i.bak "s|^name: ${OLD_PACKAGE}$|name: ${PACKAGE_NAME}|" "$ROOT/pubspec.yaml"
+  rm -f "$ROOT/pubspec.yaml.bak"
+fi
 
 # Android：MainActivity 的包路径跟随 namespace 移动。
 OLD_KOTLIN_DIR="$ROOT/android/app/src/main/kotlin/${OLD_BUNDLE_ANDROID//.//}"
 NEW_KOTLIN_DIR="$ROOT/android/app/src/main/kotlin/${BUNDLE_ID//.//}"
-if [ -d "$OLD_KOTLIN_DIR" ]; then
+if [ -d "$OLD_KOTLIN_DIR" ] && [ "$DRY_RUN" -eq 1 ]; then
+  echo "  [dry-run] ${OLD_KOTLIN_DIR#"$ROOT"/} -> ${NEW_KOTLIN_DIR#"$ROOT"/}"
+elif [ -d "$OLD_KOTLIN_DIR" ]; then
   mkdir -p "$NEW_KOTLIN_DIR"
   mv "$OLD_KOTLIN_DIR/MainActivity.kt" "$NEW_KOTLIN_DIR/MainActivity.kt"
   # 自底向上清理空的旧包目录（macOS find 不支持 -delete）。
@@ -132,6 +160,12 @@ fi
 
 # iOS：Info.plist 的 CFBundleName 使用新包名（上面已按 OLD_PACKAGE 替换）。
 # plist 中 CFBundleDisplayName 已由显示名替换完成。
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo
+  echo "以上为预览，未修改任何文件。去掉 --dry-run 重新执行即可生效。"
+  exit 0
+fi
 
 echo "已更新项目标识："
 echo "  Bundle ID   : $BUNDLE_ID"

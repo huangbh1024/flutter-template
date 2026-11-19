@@ -1,0 +1,25 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'ci:'
+    groups:
+      github-actions:
+        patterns: ['*']
+
+  # pub 依赖更新依赖 pubspec.lock，模板首次 `flutter pub get` 后请把 lock 一并提交。
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore:'
+    groups:
+      pub:
+        patterns: ['*']

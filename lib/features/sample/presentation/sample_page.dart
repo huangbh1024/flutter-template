@@ -20,7 +20,12 @@ class SamplePage extends ConsumerWidget {
 
   Future<void> _refresh(WidgetRef ref) async {
     ref.invalidate(sampleItemsProvider);
-    await ref.read(sampleItemsProvider.future);
+    try {
+      await ref.read(sampleItemsProvider.future);
+    } catch (error) {
+      // 失败态由下面的 error 分支呈现，这里只需结束下拉动画。
+      debugPrint('刷新示例数据失败：$error');
+    }
   }
 
   @override
@@ -61,9 +66,7 @@ class _SampleList extends StatelessWidget {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.all(tokens.pagePadding),
-        children: const [
-          EmptyState(icon: Icons.inbox_rounded, title: '暂无数据'),
-        ],
+        children: const [EmptyState(icon: Icons.inbox_rounded, title: '暂无数据')],
       );
     }
 
@@ -123,8 +126,7 @@ class _SampleList extends StatelessWidget {
             child: Column(
               children: [
                 for (var i = 0; i < group.items.length; i++) ...[
-                  if (i > 0)
-                    Divider(height: 1, color: palette.outlineVariant),
+                  if (i > 0) Divider(height: 1, color: palette.outlineVariant),
                   SampleRow(item: group.items[i]),
                 ],
               ],
