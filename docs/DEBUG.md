@@ -5,19 +5,29 @@ vConsole：不连电脑也能在真机 / QA 包上查看日志、异常、Widget
 
 ## 启用与关闭
 
-```bash
-# 需要面板时（debug / profile 均可）
-flutter run --dart-define=ISPECT_ENABLED=true
+ISpect 的开关是包内的编译期常量
+`const bool kISpectEnabled = bool.fromEnvironment('ISPECT_ENABLED')`，
+**没有运行时开关**，默认值为 `false`。所以非 release 包也必须由构建命令带上
+`--dart-define`，否则面板不会挂载。仓库已经把这件事固化到开发入口：
 
-# 普通开发、CI、release：不传参数，面板完全不参与构建
-flutter run
-flutter build apk --release
+```bash
+# 推荐：脚本启动，默认带面板（额外参数会透传给 flutter run）
+./tool/run_debug.sh
+./tool/run_debug.sh -d emulator-5554
+
+# 或者直接用 flutter（必须自己带参数）
+flutter run --dart-define=ISPECT_ENABLED=true
 ```
 
-- 默认关闭：开关是 `bool.fromEnvironment('ISPECT_ENABLED')`，且额外要求
-  `!kReleaseMode`。不满足时 `runWithDebugPanel` 只执行原 `runApp`，
-  delegate / observer 全部返回空实现，release 构建可 tree-shake。
+VS Code 直接按 F5 选 **App (debug, 含调试面板)** 或
+**App (profile, 含调试面板)** 即可，配置在 `.vscode/launch.json`。
+
+- 模板自己的门控还额外要求 `!kReleaseMode`：不满足时 `runWithDebugPanel`
+  只执行原 `runApp`，delegate / observer 全部返回空实现，release 构建可 tree-shake。
 - **release 包即使传了 `--dart-define=ISPECT_ENABLED=true` 也不会启用。**
+- Android Studio / IntelliJ 需要手动在 Run Configuration 的
+  *Additional run args* 里加 `--dart-define=ISPECT_ENABLED=true`
+  （`.idea/` 不入库，无法随模板分发）。
 
 ## 接入点
 
@@ -25,6 +35,8 @@ flutter build apk --release
 | --- | --- |
 | `lib/core/debug/debug_panel.dart` | 开关判断、ISpect 初始化、本地化 delegate、导航观察者、`MaterialApp.builder` 包装 |
 | `lib/main.dart` | 用 `runWithDebugPanel(...)` 包住 `runApp` |
+| `tool/run_debug.sh` | 开发启动脚本，默认带 `ISPECT_ENABLED=true` |
+| `.vscode/launch.json` | VS Code debug / profile 调试配置，默认带面板 |
 | `lib/app/app.dart` | `localizationsDelegates` / `navigatorObservers` / `builder` 三个挂载点 |
 
 ## 能看什么

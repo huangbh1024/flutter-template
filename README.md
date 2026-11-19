@@ -29,7 +29,10 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 ├── test/                      # 单测与 widget 测试示例
 ├── android/                   # 已接入 release 签名配置
 ├── ios/                       # Runner 工程（未签名，CI 支持签名导入）
-└── tool/rename_project.sh     # 一键改包名 / 显示名
+├── .vscode/launch.json        # 调试配置（debug / profile 默认开调试面板）
+└── tool/
+    ├── rename_project.sh      # 一键改包名 / 显示名
+    └── run_debug.sh           # 开发启动脚本（默认开调试面板）
 ```
 
 ## 快速开始
@@ -103,8 +106,8 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 - 金额用整数分，日期展示统一走 `core/format`；
 - 颜色 / 间距从 `context.palette` / `context.tokens` 取；
 - 提交前 `dart format` 无 diff、`flutter analyze` 零 issue、`flutter test` 全绿；
-- 真机调试面板默认关闭，需要时 `flutter run --dart-define=ISPECT_ENABLED=true`，
-  详见 [docs/DEBUG.md](docs/DEBUG.md)。
+- 真机调试面板：用 `./tool/run_debug.sh` 或 VS Code 的 debug 配置启动会默认开启；
+  release 构建自动关闭，详见 [docs/DEBUG.md](docs/DEBUG.md)。
 
 完整规则见 [CLAUDE.md](CLAUDE.md)，架构说明见
 [docs/architecture.md](docs/architecture.md)。
