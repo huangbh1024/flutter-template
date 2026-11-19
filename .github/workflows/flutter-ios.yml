@@ -1,6 +1,6 @@
 name: Flutter iOS
 
-# 规则：
+# 规则（详见 docs/CI.md）：
 # - iOS 只在合并进 main 或手动触发时构建（macOS runner 约 10 倍费用）；
 # - PR 阶段不跑 iOS 构建，只由 Android 工作流的 verify 做代码检查；
 # - 配置了 iOS 签名 secrets 时导出签名 IPA，否则产出未签名 IPA 仅用于验证构建；
@@ -12,7 +12,6 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - 'LICENSE'
       - '.gitignore'
       - '.gitattributes'
       - '.editorconfig'
@@ -25,7 +24,8 @@ permissions:
 
 concurrency:
   group: flutter-ios-${{ github.ref }}
-  cancel-in-progress: true
+  # iOS 只在 main / 手动触发，取消旧运行会丢掉产物，因此不取消。
+  cancel-in-progress: false
 
 jobs:
   ios:
@@ -45,19 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup Flutter 3.50.0
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.50.0'
-          channel: stable
-          cache: true
-
-      - name: Cache pub packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
-          restore-keys: pub-${{ runner.os }}-
+      - uses: ./.github/actions/setup-flutter
 
       - name: Pub get
         run: flutter pub get

@@ -1,13 +1,11 @@
 name: Flutter Android
 
-# 规则：
-# - PR 只做检查（analyze / test），不打包；
+# 规则（详见 docs/CI.md）：
+# - PR 只做检查（format / analyze / test），不打包；
 # - PR 合并进 main（push main）后才构建 release APK 并上传 Artifact；
-# - 只改文档/编辑器配置等非代码文件时，合入 main 不触发构建（paths-ignore）；
-# - 也可以在 Actions 页面手动触发构建。
-#
-# 注意：paths-ignore 只加在 push 上。PR 必须始终跑 verify，因为 main 分支保护
-# 把 verify 设为必需检查；若 PR 也被过滤，文档类 PR 会一直等不到该检查而无法合并。
+# - 只改文档等非代码文件时，合入 main 不触发构建（paths-ignore）；
+# - pull_request 不过滤路径，保证 verify 始终上报（分支保护必需检查）；
+# - tag（v*）发布走 release.yml。
 
 on:
   pull_request:
@@ -17,7 +15,6 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - 'LICENSE'
       - '.gitignore'
       - '.gitattributes'
       - '.editorconfig'
@@ -30,45 +27,19 @@ permissions:
 
 concurrency:
   group: flutter-android-${{ github.ref }}
-  cancel-in-progress: true
+  # PR 上取消旧运行省时间；main 上的出包构建保留，避免产物缺失。
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
     name: verify
-    # 托管 runner 在国外，访问 Flutter/Google/Maven 官方源不需要国内镜像
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup Java 21
-        uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: gradle
-
-      - name: Setup Flutter 3.50.0
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.50.0'
-          channel: stable
-          cache: true
-
-      - name: Cache pub packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
-          restore-keys: pub-${{ runner.os }}-
-
-      - name: Install Android SDK packages
-        run: |
-          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(command -v sdkmanager)"; fi
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - uses: ./.github/actions/setup-flutter
 
       - name: Pub get
         run: flutter pub get
@@ -78,6 +49,10 @@ jobs:
 
       - name: Test
         run: flutter test
+
+      # analyze 不检查格式；放在最后，先暴露 analyze / test 的问题。
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
 
   # ---------- 以下只在合并进 main 或手动触发时执行 ----------
   android:
@@ -97,19 +72,7 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Setup Flutter 3.50.0
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.50.0'
-          channel: stable
-          cache: true
-
-      - name: Cache pub packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.pub-cache
-          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
-          restore-keys: pub-${{ runner.os }}-
+      - uses: ./.github/actions/setup-flutter
 
       - name: Install Android SDK packages
         run: |
@@ -130,6 +93,7 @@ jobs:
         run: |
           if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "::notice::未配置签名 secrets，本次使用 debug 签名（仅适合内测）"
+            echo "签名：未配置 secrets，本次为 **debug 签名**，仅适合内测。" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
@@ -139,6 +103,7 @@ jobs:
           keyAlias=$ANDROID_KEY_ALIAS
           storeFile=upload-keystore.jks
           PROPS
+          echo "签名：使用仓库配置的 **release 签名**。" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build release APK (arm64)
         run: flutter build apk --release --target-platform android-arm64

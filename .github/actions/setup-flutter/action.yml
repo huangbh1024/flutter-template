@@ -1,0 +1,20 @@
+name: Setup Flutter
+description: 安装固定版本的 Flutter SDK，并缓存 SDK 与 pub 依赖
+
+inputs:
+  flutter-version:
+    description: Flutter 版本，与 CLAUDE.md / docs/CI.md 保持一致
+    required: false
+    default: '3.50.0'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2.23.0
+      with:
+        flutter-version: ${{ inputs.flutter-version }}
+        channel: stable
+        # cache 同时缓存 Flutter SDK 与 ~/.pub-cache（pub-cache 默认跟随 cache），
+        # 因此工作流里不再单独写 actions/cache。
+        cache: true
