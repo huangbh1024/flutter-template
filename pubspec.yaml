@@ -20,7 +20,7 @@ dependencies:
   # 日期 / 数字格式化。
   intl: ^0.20.3
 
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
 
 dev_dependencies:
   flutter_test:
