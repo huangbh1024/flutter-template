@@ -1,28 +1,30 @@
 # CI 构建（GitHub Actions）
 
-本模板包含两个工作流：
+本模板包含三个工作流和一个共用 action：
 
-| 工作流 | 文件 | 职责 |
+| 工作流 / action | 文件 | 职责 |
 | --- | --- | --- |
 | Flutter Android | `.github/workflows/flutter-android.yml` | `verify` 检查 + Android APK |
 | Flutter iOS | `.github/workflows/flutter-ios.yml` | iOS IPA |
+| Release | `.github/workflows/release.yml` | tag 发布：签名 APK / IPA + GitHub Release |
+| Setup Flutter | `.github/actions/setup-flutter/action.yml` | 安装固定版本 Flutter，缓存 SDK 与 pub 依赖 |
 
 ## 触发
 
-| 事件 | Flutter Android | Flutter iOS |
-| --- | --- | --- |
-| PR → `main` | 只跑 `pub get` / `analyze` / `test`（`verify`） | 不触发 |
-| push → `main`（PR 合并后） | `verify` + 构建 release arm64 APK + 上传 Artifact | 构建 IPA + 上传 Artifact |
-| push → `main`，只改文档 | 不触发 | 不触发 |
-| workflow_dispatch | 手动出 Android 包 | 手动出 iOS 包 |
+| 事件 | Flutter Android | Flutter iOS | Release |
+| --- | --- | --- | --- |
+| PR → `main` | 只跑 `verify`（format / analyze / test） | 不触发 | 不触发 |
+| push → `main`（PR 合并后） | `verify` + 构建 release arm64 APK + 上传 Artifact | 构建 IPA + 上传 Artifact | 不触发 |
+| push → `main`，只改文档 | 不触发 | 不触发 | 不触发 |
+| push `v*` tag | 不触发 | 不触发 | 构建签名 APK / IPA 并创建 GitHub Release |
+| workflow_dispatch | 手动出 Android 包 | 手动出 iOS 包 | 不适用（tag 触发） |
 
-`push` 事件忽略以下路径（两个工作流相同）：
+`push` 事件忽略以下路径（Android / iOS 工作流相同）：
 
 ```yaml
 paths-ignore:
   - '**.md'
   - 'docs/**'
-  - 'LICENSE'
   - '.gitignore'
   - '.gitattributes'
   - '.editorconfig'
@@ -40,16 +42,47 @@ paths-ignore:
 
 功能分支直接 push 不会触发 CI；先开 PR 到 `main`，合并后才会出包。
 
+## 共用 Setup Flutter
+
+`.github/actions/setup-flutter/action.yml` 统一安装 Flutter 并开启缓存：
+
+```yaml
+- uses: subosito/flutter-action@v2.23.0
+  with:
+    flutter-version: '3.50.0'
+    channel: stable
+    cache: true
+```
+
+`cache: true` 会同时缓存 Flutter SDK 与 `~/.pub-cache`，工作流里不需要再写
+`actions/cache`。**升级 Flutter 版本只改这个 action 的默认值**，再同步
+`CLAUDE.md` 与本文档。
+
+> `subosito/flutter-action` 没有 `v2` 浮动 tag，必须写到具体版本
+> （如 `v2.23.0`），否则 action 无法解析。
+
 ## Android 流程
 
-1. Java 21 + Flutter 3.50.0 stable（带缓存）
+### verify（PR 与 main 都跑）
+
+1. `actions/checkout`
+2. 调用 `./.github/actions/setup-flutter`
+3. `flutter pub get`
+4. `dart format --output=none --set-exit-if-changed lib test`
+5. `flutter analyze`
+6. `flutter test`
+
+`verify` 不使用 Android SDK，也不装 Java，PR 反馈更快。
+
+### build（仅 main / 手动触发）
+
+1. Java 21 + Flutter（复用 Setup Flutter）
 2. 安装 Android SDK `platforms;android-36`、`build-tools;36.0.0`
-3. `flutter pub get` → `flutter analyze` → `flutter test`
-4. 仅 main / 手动触发：
-   - 若配置了 Android 签名 secrets，生成 `android/key.properties` 与
-     `android/app/upload-keystore.jks`；
-   - `flutter build apk --release --target-platform android-arm64`
-5. 仅 main / 手动触发：上传 APK Artifact，保留 7 天
+3. `flutter pub get`
+4. 若配置了 Android 签名 secrets，生成 `android/key.properties` 与
+   `android/app/upload-keystore.jks`；未配置则回退 debug 签名
+5. `flutter build apk --release --target-platform android-arm64`
+6. 上传 APK Artifact，保留 7 天；签名方式写入 Step Summary
 
 需要同时产出多 ABI 或 App Bundle 时，修改构建命令，例如：
 
@@ -63,7 +96,7 @@ flutter build appbundle --release
 
 ## iOS 流程
 
-1. `macos-latest` + Flutter 3.50.0 stable
+1. `macos-latest` + Flutter（复用 Setup Flutter）
 2. `flutter pub get`
 3. 若配置了 iOS 签名 secrets：
    - 导入证书到临时 keychain；
@@ -93,6 +126,35 @@ secrets，或下载构建产物后在本地用 Xcode 重新签名导出。
 > `PRODUCT_BUNDLE_IDENTIFIER`。手动签名场景可能需要在 `ExportOptions.plist`
 > 中补充 `provisioningProfiles` 映射，按 Xcode 导出的模板填写。
 
+## Release 流程（tag 发布）
+
+推送 `v*` tag 时触发 `release.yml`：
+
+1. `check-version`：tag 去掉 `v` 后必须与 `pubspec.yaml` 的 `version`
+   （不含 `+build`）一致，否则立即失败；
+2. `build-android` / `build-ios`：与 main 的构建相同，但**要求配置签名
+   secrets**，缺失时直接失败，不会发布未签名产物；
+3. `publish`：下载两端产物，`gh release create <tag>` 创建 GitHub Release，
+   Release Notes 自动生成。
+
+发布步骤：
+
+```bash
+# 1. 在分支上更新 pubspec.yaml 的 version，例如 0.2.0+3
+git switch -c chore/release-0.2.0
+# 修改 version 后提交并开 PR
+git push -u origin chore/release-0.2.0
+gh pr create --base main
+
+# 2. PR 合并后，在最新 main 上打 tag
+git switch main && git pull
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+tag 与版本号不一致时 `release.yml` 会在 `check-version` 阶段失败，不会产生
+Release。
+
 ## 签名 secrets 配置
 
 仓库 **Settings → Secrets and variables → Actions**：
@@ -108,7 +170,7 @@ secrets，或下载构建产物后在本地用 Xcode 重新签名导出。
 
 `android/app/build.gradle.kts` 已实现 `signingConfigs.release`，读取
 `android/key.properties`。未配置 secrets 时工作流继续使用 debug 签名，
-仅适合内测。
+仅适合内测；**正式 Release 必须配置**。
 
 > **全量 APK 更新必须使用固定 release 签名**：不同 CI 运行生成的 debug
 > keystore 不同，新旧包签名不一致会导致系统拒绝覆盖安装。
@@ -130,11 +192,20 @@ base64 -w0 ~/certs/distribution.p12 > cert.b64
 base64 -w0 ~/certs/App_Profile.mobileprovision > profile.b64
 ```
 
+## 依赖与 action 更新
+
+`.github/dependabot.yml` 每周检查 `github-actions` 与 `pub` 依赖并开 PR：
+
+- actions 的 PR 会带上 `ci:` 前缀，合并前确认 `verify` 通过；
+- pub 更新依赖 `pubspec.lock`。模板首次 `flutter pub get` 后请把 lock
+  一并提交，否则 dependabot 无法正确解析和更新依赖版本。
+
 ## 费用
 
 - 公开仓库：标准 `ubuntu-24.04` runner 免费，Android 打包无额外费用。
 - 私有仓库：Linux 2-core 约 $0.006/分钟；**macOS runner 约
-  $0.062/分钟（约 10 倍）**，iOS 构建只在 main / 手动触发，避免 PR 阶段浪费。
+  $0.062/分钟（约 10 倍）**，iOS 构建只在 main / tag / 手动触发，避免 PR
+  阶段浪费。
 - Artifact 与缓存有配额，必要时缩短 `retention-days`。
 - 建议在 Settings → Billing 设置 spending limit，避免意外账单。
 
@@ -142,7 +213,7 @@ base64 -w0 ~/certs/App_Profile.mobileprovision > profile.b64
 
 Actions → 某次运行 → 页面底部 **Artifacts**：
 
-- `flutter_app_template-android-<run>-<sha>`（APK）
-- `flutter_app_template-ios-<run>-<sha>`（IPA）
+- `<repo>-android-<run>-<sha>`（APK）
+- `<repo>-ios-<run>-<sha>`（IPA）
 
-Artifact 名称取自仓库名，不用手改。
+Artifact 名称取自仓库名，不用手改。正式版本请从 GitHub **Releases** 下载。

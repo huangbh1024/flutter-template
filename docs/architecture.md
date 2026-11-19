@@ -43,7 +43,10 @@ Widget (presentation)
 1. 在 `data/` 新增 `HttpXxxRepository implements XxxRepository`；
 2. 在 `domain/providers.dart` 把 `MockXxxRepository()` 换成
    `HttpXxxRepository(client)`；
-3. 页面与 provider 消费者不需要改动。
+3. 页面与 provider 消费者不需要改动；
+4. Android 需要在 `android/app/src/main/AndroidManifest.xml` 打开
+   `INTERNET` 权限（模板里默认注释掉）；iOS 访问非 HTTPS 接口还要在
+   `Info.plist` 配置 ATS 例外，正式环境优先用 HTTPS。
 
 ## 示例 feature
 
@@ -67,6 +70,14 @@ Widget (presentation)
 不要在页面里写 `Color(0xFF...)`、`SizedBox(height: 17)` 这类魔法值；
 确需新增 token 时，同时补 light / dark 两套值。
 
+## 本地化
+
+- 应用固定为中文：`MaterialApp` 已配置 `flutter_localizations`、
+  `supportedLocales: [zh_CN, en]`，Material 内置组件（日期选择器、文本
+  选择菜单等）不会回退成英文；
+- 页面文案目前直接写在组件里。需要多语言时引入 `l10n.yaml` + ARB，
+  用生成的 `AppLocalizations` 取文案，并删掉 `App` 里固定的 `locale`。
+
 ## 金额与日期
 
 - 金额：数据层一律 `int` 分；输入用 `parseYuanToCents`，展示用
@@ -78,7 +89,9 @@ Widget (presentation)
 ## 测试策略
 
 - `domain` 纯函数：普通 `test`，固定输入输出，不碰 Widget；
-- provider / notifier：`ProviderContainer` 单测，必要时 override 仓库；
+- provider / notifier：`ProviderContainer.test(overrides: [...])` 单测，
+  参考 `test/features/sample/sample_providers_test.dart`；autoDispose 的
+  provider 先 `container.listen` 保持存活；
 - 页面：`testWidgets` + `ProviderScope(overrides: [...])`，
   用零延迟 Mock 仓库；
 - 修 bug 先写复现测试；新增统计 / 分组 / 校验逻辑必须带测试。

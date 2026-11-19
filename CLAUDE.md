@@ -7,11 +7,13 @@
 
 - Flutter 3.50.0 stable / Dart `^3.14.0`
 - Material 3（`material_ui`）、Riverpod 3（`flutter_riverpod`）、`intl`
-- Android：Java 21、compileSdk 36、build-tools 36.0.0、Gradle 9.5
+- Android：JDK 21 编译（`compileOptions` / `jvmTarget` 保持 17，与 Flutter
+  默认一致）、compileSdk 36、build-tools 36.0.0、Gradle 9.5
 - CI runner：`ubuntu-24.04`（Android）、`macos-latest`（iOS）
 
 不要擅自升级 Flutter / Java / SDK / Gradle 版本；确需升级时单独开 PR，
-同步更新 `.github/workflows/*.yml`、本文件和 [docs/CI.md](docs/CI.md)。
+同步更新 `.github/actions/setup-flutter/action.yml`、本文件和
+[docs/CI.md](docs/CI.md)。
 
 ## 分支与合并（必须遵守）
 
@@ -41,19 +43,25 @@
 
 工作流：
 
-- `.github/workflows/flutter-android.yml`：`verify` + Android APK
+- `.github/workflows/flutter-android.yml`：`verify`（format / analyze / test）
+  + Android APK
 - `.github/workflows/flutter-ios.yml`：iOS IPA
+- `.github/workflows/release.yml`：推送 `v*` tag 构建签名 APK / IPA 并创建 Release
+- `.github/actions/setup-flutter/action.yml`：各工作流共用的 Flutter 安装与缓存
 
 规则：
 
-- **PR → `main`**：只运行 `flutter pub get`、`flutter analyze`、`flutter test`
-  （`verify` job），**不打包**，iOS 也不构建。
+- **PR → `main`**：只运行 `flutter pub get`、`dart format` 检查、
+  `flutter analyze`、`flutter test`（`verify` job），**不打包**，iOS 也不构建。
 - **PR 合并进 `main` 后**：运行检查并构建 `flutter build apk --release
   --target-platform android-arm64`，上传 APK Artifact（保留 7 天）；
   同时触发 iOS 工作流构建 IPA。
-- **只改文档的合并**：`push main` 忽略 `**.md`、`docs/**`、`LICENSE`、
-  `.gitignore` 等路径，纯文档改动不触发任何构建；`pull_request` 不过滤，
-  保证 `verify` 始终上报（分支保护必需检查）。
+- **只改文档的合并**：`push main` 忽略 `**.md`、`docs/**`、`.gitignore`、
+  `.gitattributes`、`.editorconfig` 等路径，纯文档改动不触发任何构建；
+  `pull_request` 不过滤，保证 `verify` 始终上报（分支保护必需检查）。
+- **tag 发布**：推送 `v<版本>`（如 `v0.1.0`）触发 `release.yml`，tag 必须与
+  `pubspec.yaml` 的 `version`（不含 `+build`）一致；发布要求配置两端签名
+  secrets，缺签名直接失败，不产出未签名 Release。
 - **workflow_dispatch**：手动触发与合并 main 相同，会打 Android + iOS 包。
 - 功能分支直接 push 不触发 CI；必须开 PR。
 - 不要随意修改触发条件；如需调整，同步更新 `CONTRIBUTING.md` 与 `docs/CI.md`。
@@ -103,7 +111,8 @@ lib/
 
 ## 编码规范
 
-- 提交前必须 `flutter analyze` 零 issue、`flutter test` 全绿。
+- 提交前必须 `dart format` 无 diff、`flutter analyze` 零 issue、
+  `flutter test` 全绿。
 - 新增 `domain` / `presenter` 逻辑必须带单测；修 bug 先补回归测试。
 - 优先 `const`；禁止 `print`（调试用 `debugPrint`）；异常要有用户可读文案。
 - 文件名 `snake_case.dart`，类名 `PascalCase`，常量 `lowerCamelCase`。
@@ -114,6 +123,7 @@ lib/
 
 ```bash
 flutter pub get
+dart format lib test
 flutter analyze
 flutter test
 
@@ -127,7 +137,7 @@ flutter build ios --release --no-codesign   # 需要 macOS + Xcode
 1. 先读本文件、[CONTRIBUTING.md](CONTRIBUTING.md)、[docs/CI.md](docs/CI.md)。
 2. `git switch main && git pull`，再 `git switch -c <type>/<topic>`。
 3. 实现改动，同时补测试。
-4. 运行 `flutter analyze` 与 `flutter test`，全部通过后再提交。
+4. 运行 `dart format`、`flutter analyze` 与 `flutter test`，全部通过后再提交。
 5. `git push -u origin <branch>`，`gh pr create --base main`。
 6. 等待 `verify` 通过；失败先修，不要用 `--no-verify` 或跳过检查。
 7. 合并 PR（用户确认后），删除分支。
@@ -136,6 +146,6 @@ flutter build ios --release --no-codesign   # 需要 macOS + Xcode
 
 - 直接 push / force push `main`，修改分支保护规则。
 - 提交密钥、证书、签名配置或任何本地生成文件。
-- 跳过 `flutter analyze` / `flutter test` 直接提交。
+- 跳过 `dart format` / `flutter analyze` / `flutter test` 直接提交。
 - 未经确认修改 CI 触发条件、工具链版本或打包平台范围。
 - 在 `presentation/` 里写业务计算逻辑，或让 `domain/` 依赖 Flutter 页面。

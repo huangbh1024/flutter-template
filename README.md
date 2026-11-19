@@ -14,9 +14,16 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 ├── docs/
 │   ├── architecture.md        # 分层、数据流、主题、测试约定
 │   └── CI.md                  # Android / iOS CI 与签名说明
-├── .github/workflows/
-│   ├── flutter-android.yml    # PR verify + main 构建 APK
-│   └── flutter-ios.yml        # main / 手动构建 IPA
+├── .github/
+│   ├── actions/setup-flutter/ # 工作流共用：安装 Flutter + 缓存
+│   ├── workflows/
+│   │   ├── flutter-android.yml # PR verify + main 构建 APK
+│   │   ├── flutter-ios.yml     # main / 手动构建 IPA
+│   │   └── release.yml         # tag 发布签名包 + GitHub Release
+│   └── dependabot.yml         # actions / pub 依赖周更
+├── .editorconfig              # 编辑器基础设置
+├── .gitattributes             # 统一 LF
+├── .metadata                  # Flutter 项目元数据
 ├── lib/                       # 分层脚手架 + 示例 feature
 ├── test/                      # 单测与 widget 测试示例
 ├── android/                   # 已接入 release 签名配置
@@ -48,6 +55,7 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 
    ```bash
    flutter pub get
+   dart format lib test
    flutter analyze
    flutter test
    flutter run
@@ -81,8 +89,9 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 
 | 事件 | 结果 |
 | --- | --- |
-| PR → `main` | `verify`：`pub get` + `analyze` + `test`，不打包 |
+| PR → `main` | `verify`：`pub get` + `format` 检查 + `analyze` + `test`，不打包 |
 | PR 合并进 `main` | 构建 Android APK（arm64）与 iOS IPA，上传 Artifact |
+| 推送 `v*` tag | 构建签名 APK / IPA 并创建 GitHub Release |
 | 只改文档的合并 | 不触发构建 |
 | Actions → Run workflow | 手动出 Android / iOS 包 |
 
@@ -92,15 +101,15 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 - 页面只通过 provider 取数，仓库接口与 Mock 实现分离；
 - 金额用整数分，日期展示统一走 `core/format`；
 - 颜色 / 间距从 `context.palette` / `context.tokens` 取；
-- 提交前 `flutter analyze` 零 issue、`flutter test` 全绿。
+- 提交前 `dart format` 无 diff、`flutter analyze` 零 issue、`flutter test` 全绿。
 
 完整规则见 [CLAUDE.md](CLAUDE.md)，架构说明见
 [docs/architecture.md](docs/architecture.md)。
 
 ## 维护模板
 
-- Flutter / Java / SDK 版本在三处保持一致：`.github/workflows/*.yml`、
-  `CLAUDE.md`、`docs/CI.md`；
+- Flutter 版本只写在 `.github/actions/setup-flutter/action.yml` 的默认值里，
+  升级时同步 `CLAUDE.md` 与 `docs/CI.md`；Java / SDK 版本见 `docs/CI.md`；
 - 升级 Flutter 后重新生成原生工程时，注意保留 `android/app/build.gradle.kts`
   的 release 签名配置与 `ios/Runner/Info.plist` 的显示名；
 - 模板中的示例 feature（`lib/features/sample`）在真实项目中替换为业务模块。
