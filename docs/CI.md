@@ -1,11 +1,12 @@
 # CI 构建（GitHub Actions）
 
-本模板包含三个工作流和一个共用 action：
+本模板包含四个工作流和一个共用 action：
 
 | 工作流 / action | 文件 | 职责 |
 | --- | --- | --- |
 | Flutter Android | `.github/workflows/flutter-android.yml` | `verify` 检查 + Android APK |
 | Flutter iOS | `.github/workflows/flutter-ios.yml` | iOS IPA |
+| Flutter Debug APK | `.github/workflows/flutter-debug-apk.yml` | 带调试面板的 profile APK（内测用） |
 | Release | `.github/workflows/release.yml` | tag 发布：签名 APK / IPA + GitHub Release |
 | Setup Flutter | `.github/actions/setup-flutter/action.yml` | 安装固定版本 Flutter，缓存 SDK 与 pub 依赖 |
 | Android Signing | `.github/actions/android-signing/action.yml` | 导入 Android release 签名；正式发布缺少 secrets 时失败 |
@@ -13,13 +14,14 @@
 
 ## 触发
 
-| 事件 | Flutter Android | Flutter iOS | Release |
-| --- | --- | --- | --- |
-| PR → `main` | 只跑 `verify`（format / analyze / test） | 不触发 | 不触发 |
-| push → `main`（PR 合并后） | `verify` + 构建 release arm64 APK + 上传 Artifact | 构建 IPA + 上传 Artifact | 不触发 |
-| push → `main`，只改文档 | 不触发 | 不触发 | 不触发 |
-| push `v*` tag | 不触发 | 不触发 | 构建签名 APK / IPA 并创建 GitHub Release |
-| workflow_dispatch | 手动出 Android 包 | 手动出 iOS 包 | 不适用（tag 触发） |
+| 事件 | Flutter Android | Flutter iOS | Flutter Debug APK | Release |
+| --- | --- | --- | --- | --- |
+| PR → `main` | 只跑 `verify`（format / analyze / test） | 不触发 | 不触发 | 不触发 |
+| push → `main`（PR 合并后） | `verify` + 构建 release arm64 APK + 上传 Artifact | 构建 IPA + 上传 Artifact | 不触发 | 不触发 |
+| push → `main`，只改文档 | 不触发 | 不触发 | 不触发 | 不触发 |
+| push `debug/**` 分支 | 不触发 | 不触发 | `verify` + 构建带面板的 profile APK | 不触发 |
+| push `v*` tag | 不触发 | 不触发 | 不触发 | 构建签名 APK / IPA 并创建 GitHub Release |
+| workflow_dispatch | 手动出 Android 包 | 手动出 iOS 包 | 手动出带面板的 profile APK | 不适用（tag 触发） |
 
 `push` 事件忽略以下路径（Android / iOS 工作流相同）：
 
@@ -106,6 +108,19 @@ flutter build appbundle --release
 
 产物路径相应改为 `build/app/outputs/flutter-apk/*.apk` 或
 `build/app/outputs/bundle/release/*.aab`，并同步修改上传步骤。
+
+## Debug APK 流程（`.github/workflows/flutter-debug-apk.yml`）
+
+本地无法连接设备时，用 CI 产出「自带屏内调试面板」的安装包：
+
+- 触发：推送到 `debug/**` 分支，或 Actions 页面手动 `Run workflow`（可指定任意分支）；
+- 构建：`flutter build apk --profile --dart-define=ISPECT_ENABLED=true
+  --target-platform android-arm64`。ISpect 的开关是编译期常量，缺少 define 时面板
+  不会挂载；profile 模式 `kReleaseMode=false`，面板可用；
+- 产物：`<repo>-debug-apk-<run>-<sha>`，保留 7 天；
+- 签名：profile 构建类型继承 debug 签名，与 main 的 release 包签名不同，
+  **安装前先卸载设备上的旧包**；
+- 不影响正式流程：main / tag 仍只产出 release 包，面板在 release 中始终关闭。
 
 ## iOS 流程
 
@@ -228,7 +243,8 @@ base64 -w0 ~/certs/App_Profile.mobileprovision > profile.b64
 
 Actions → 某次运行 → 页面底部 **Artifacts**：
 
-- `<repo>-android-<run>-<sha>`（APK）
+- `<repo>-android-<run>-<sha>`（release APK）
 - `<repo>-ios-<run>-<sha>`（IPA）
+- `<repo>-debug-apk-<run>-<sha>`（带调试面板的 profile APK）
 
 Artifact 名称取自仓库名，不用手改。正式版本请从 GitHub **Releases** 下载。

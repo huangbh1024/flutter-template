@@ -13,12 +13,14 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 ├── CONTRIBUTING.md            # 分支、CI、签名、开发流程
 ├── docs/
 │   ├── architecture.md        # 分层、数据流、主题、测试约定
-│   └── CI.md                  # Android / iOS CI 与签名说明
+│   ├── CI.md                  # Android / iOS CI 与签名说明
+│   └── DEBUG.md               # 真机调试面板（ISpect）使用说明
 ├── .github/
 │   ├── actions/setup-flutter/ # 工作流共用：安装 Flutter + 缓存
 │   ├── workflows/
 │   │   ├── flutter-android.yml # PR verify + main 构建 APK
 │   │   ├── flutter-ios.yml     # main / 手动构建 IPA
+│   │   ├── flutter-debug-apk.yml # debug/** 或手动：带调试面板的 profile APK
 │   │   └── release.yml         # tag 发布签名包 + GitHub Release
 │   └── dependabot.yml         # actions / pub 依赖周更
 ├── .editorconfig              # 编辑器基础设置
@@ -28,7 +30,10 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 ├── test/                      # 单测与 widget 测试示例
 ├── android/                   # 已接入 release 签名配置
 ├── ios/                       # Runner 工程（未签名，CI 支持签名导入）
-└── tool/rename_project.sh     # 一键改包名 / 显示名
+├── .vscode/launch.json        # 调试配置（debug / profile 默认开调试面板）
+└── tool/
+    ├── rename_project.sh      # 一键改包名 / 显示名
+    └── run_debug.sh           # 开发启动脚本（默认开调试面板）
 ```
 
 ## 快速开始
@@ -93,6 +98,7 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 | PR 合并进 `main` | 构建 Android APK（arm64）与 iOS IPA，上传 Artifact |
 | 推送 `v*` tag | 构建签名 APK / IPA 并创建 GitHub Release |
 | 只改文档的合并 | 不触发构建 |
+| 推送 `debug/**` 分支 / Debug APK 工作流 | 构建带调试面板的 profile APK（Artifact） |
 | Actions → Run workflow | 手动出 Android / iOS 包 |
 
 ## 开发约定（摘要）
@@ -101,7 +107,9 @@ Android / iOS 双端 CI 打包，以及面向 AI 代理的协作规范。
 - 页面只通过 provider 取数，仓库接口与 Mock 实现分离；
 - 金额用整数分，日期展示统一走 `core/format`；
 - 颜色 / 间距从 `context.palette` / `context.tokens` 取；
-- 提交前 `dart format` 无 diff、`flutter analyze` 零 issue、`flutter test` 全绿。
+- 提交前 `dart format` 无 diff、`flutter analyze` 零 issue、`flutter test` 全绿；
+- 真机调试面板：用 `./tool/run_debug.sh` 或 VS Code 的 debug 配置启动会默认开启；
+  release 构建自动关闭，详见 [docs/DEBUG.md](docs/DEBUG.md)。
 
 完整规则见 [CLAUDE.md](CLAUDE.md)，架构说明见
 [docs/architecture.md](docs/architecture.md)。

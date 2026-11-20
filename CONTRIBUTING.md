@@ -56,7 +56,10 @@ gh pr create --base main --head feat/your-feature --fill
 - **只改文档时**：合并进 `main` 若只涉及 `**.md`、`docs/**`、`.gitignore`、
   `.gitattributes`、`.editorconfig` 等非代码文件，**不会触发**工作流；需要出包时
   在 Actions 页面手动 `Run workflow`。
-- **手动触发**：两个工作流都支持 `Run workflow`。
+- **手动触发**：Android / iOS 工作流都支持 `Run workflow`；
+- **调试包**：推 `debug/**` 分支或手动触发 `Flutter Debug APK` 工作流，会构建
+  带 ISpect 屏内调试面板的 profile APK（详见 [docs/DEBUG.md](docs/DEBUG.md)）。
+  profile 使用 debug 签名，安装前先卸载旧包。
 - **tag 发布**：推送 `v<版本>` tag 触发 `release.yml`，tag 去掉 `v` 后必须与
   `pubspec.yaml` 的 `version`（不含 `+build`）一致；发布要求配置两端签名
   secrets，缺少签名会直接失败。
@@ -67,10 +70,11 @@ gh pr create --base main --head feat/your-feature --fill
 
 `main` 分支启用保护规则：
 
-- 必须通过 PR 合并，禁止直接 push；
-- 必须通过 `verify` 状态检查；
-- 分支需与 `main` 同步后才能合并；
-- 禁止 force push 和删除分支。
+- 必须通过 PR 合并，禁止直接 push（管理员同样受限）；
+- 必须通过 `verify` 状态检查，且合并前需解决所有评论；
+- 不强制分支与 `main` 同步（可在 PR 页面按需 Update branch）；
+- 禁止 force push 和删除分支；
+- 不要求他人批准（单人仓库，批准数为 0）。
 
 PR 检查通过后，使用 GitHub 的 **Merge pull request** 或 **Squash and merge** 合并。
 

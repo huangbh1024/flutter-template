@@ -21,6 +21,9 @@ dependencies:
   intl: ^0.20.3
 
   cupertino_icons: ^2.0.0
+  # 屏内调试面板（日志 / 网络 / Widget 树 / 存储），仅 debug、profile 构建可用。
+  # 8.0 起面板改用 material_ui；仍是预发布版，精确锁版本，升级需单独验证。
+  ispect: 8.0.0-dev.1
 
 dev_dependencies:
   flutter_test:

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../core/config/app_config.dart';
+import '../core/debug/debug_panel.dart';
 import 'app_shell.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_mode_provider.dart';
@@ -25,7 +26,14 @@ class App extends ConsumerWidget {
       // 需要多语言时改为 ARB + gen_l10n，并删掉固定的 [locale]。
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      localizationsDelegates: [
+        ...GlobalMaterialLocalizations.delegates,
+        // 仅调试面板启用时追加，release 下为空列表。
+        ...debugLocalizationsDelegates(),
+      ],
+      navigatorObservers: debugNavigatorObservers(),
+      builder: (context, child) =>
+          wrapWithDebugPanel(child: child ?? const SizedBox.shrink()),
       home: const AppShell(),
     );
   }
