@@ -50,6 +50,8 @@
   构建带 ISpect 调试面板的 profile APK（内测调试用，不是正式包）
 - `.github/workflows/release.yml`：推送 `v*` tag 构建签名 APK / IPA 并创建 Release
 - `.github/actions/setup-flutter/action.yml`：各工作流共用的 Flutter 安装与缓存
+- `.github/actions/verify/action.yml`、`android-signing`、`ios-signing`：
+  共用的检查与签名复合 action，工作流不要再复制这些步骤
 
 规则：
 

@@ -30,19 +30,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: ./.github/actions/setup-flutter
-
-      - name: Pub get
-        run: flutter pub get
-
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Test
-        run: flutter test
-
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+      # 与正式检查同一套；额外打开 ISpect 的编译期开关，让面板挂载冒烟测试
+      # 真正执行（普通 flutter test 下该用例会被跳过）。
+      - uses: ./.github/actions/verify
+        with:
+          test-args: --dart-define=ISPECT_ENABLED=true
 
   debug-apk:
     name: build-debug-apk
