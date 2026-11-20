@@ -5,7 +5,8 @@ name: Flutter Android
 # - PR 合并进 main（push main）后才构建 release APK 并上传 Artifact；
 # - 只改文档等非代码文件时，合入 main 不触发构建（paths-ignore）；
 # - pull_request 不过滤路径，保证 verify 始终上报（分支保护必需检查）；
-# - tag（v*）发布走 release.yml。
+# - tag（v*）发布走 release.yml；
+# - 签名导入与校验在 .github/actions/android-signing，release.yml 共用。
 
 on:
   pull_request:
@@ -62,6 +63,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
+    # 签名 secrets 放在 job 级别，供 .github/actions/android-signing 读取；
+    # 未配置时该 action 回退 debug 签名（仅适合内测）。
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
     steps:
       - uses: actions/checkout@v7
 
@@ -84,26 +93,7 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      - name: Prepare signing (optional)
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "::notice::未配置签名 secrets，本次使用 debug 签名（仅适合内测）"
-            echo "签名：未配置 secrets，本次为 **debug 签名**，仅适合内测。" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
-          cat > android/key.properties <<PROPS
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyPassword=$ANDROID_KEY_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          storeFile=upload-keystore.jks
-          PROPS
-          echo "签名：使用仓库配置的 **release 签名**。" >> "$GITHUB_STEP_SUMMARY"
+      - uses: ./.github/actions/android-signing
 
       - name: Build release APK (arm64)
         run: flutter build apk --release --target-platform android-arm64
@@ -114,4 +104,6 @@ jobs:
           name: ${{ github.event.repository.name }}-android-${{ github.run_number }}-${{ github.sha }}
           path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
+          # 重跑失败的 job 时同名 Artifact 已存在，覆盖而不是报错。
+          overwrite: true
           retention-days: 7
