@@ -40,20 +40,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: ./.github/actions/setup-flutter
-
-      - name: Pub get
-        run: flutter pub get
-
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Test
-        run: flutter test
-
-      # analyze 不检查格式；放在最后，先暴露 analyze / test 的问题。
-      - name: Format check
-        run: dart format --output=none --set-exit-if-changed lib test
+      # 检查步骤统一在复合 action 里，调试包工作流复用同一套。
+      - uses: ./.github/actions/verify
 
   # ---------- 以下只在合并进 main 或手动触发时执行 ----------
   android:

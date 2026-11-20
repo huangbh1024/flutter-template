@@ -48,8 +48,9 @@ gh pr create --base main --head feat/your-feature --fill
 
 ## CI 规则
 
-- **PR 阶段**：只运行 `flutter pub get`、`dart format` 检查、`flutter analyze`、
-  `flutter test`，**不打包**。
+- **PR 阶段**：只运行 `flutter pub get --enforce-lockfile`、`dart format` 检查、
+  `flutter analyze`、`flutter test`，**不打包**；改动依赖后必须一并提交
+  `pubspec.lock`，否则 `verify` 会失败。
 - **合并进 `main` 后**：自动运行完整检查，构建 Android release arm64 APK 与
   iOS IPA，上传到 Actions Artifact。
 - **只改文档时**：合并进 `main` 若只涉及 `**.md`、`docs/**`、`.gitignore`、

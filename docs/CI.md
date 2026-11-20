@@ -63,18 +63,27 @@ paths-ignore:
 > `subosito/flutter-action` 没有 `v2` 浮动 tag，必须写到具体版本
 > （如 `v2.23.0`），否则 action 无法解析。
 
+## 共用 Verify
+
+`.github/actions/verify/action.yml` 统一执行 `setup-flutter`、
+`pub get --enforce-lockfile`、`analyze`、`test` 与 `dart format` 检查。
+需要跑检查的工作流直接 `uses: ./.github/actions/verify`，不要再复制步骤。
+
 ## Android 流程
 
 ### verify（PR 与 main 都跑）
 
 1. `actions/checkout`
-2. 调用 `./.github/actions/setup-flutter`
-3. `flutter pub get`
-4. `dart format --output=none --set-exit-if-changed lib test`
-5. `flutter analyze`
-6. `flutter test`
+2. 调用 `./.github/actions/verify`，依次执行：
+   - `./.github/actions/setup-flutter`
+   - `flutter pub get --enforce-lockfile`
+   - `flutter analyze`
+   - `flutter test`
+   - `dart format --output=none --set-exit-if-changed lib test`
 
 `verify` 不使用 Android SDK，也不装 Java，PR 反馈更快。
+`--enforce-lockfile` 保证 CI 不会在 `pubspec.lock` 之外悄悄升级依赖；
+改了 `pubspec.yaml` 却没提交 lock 时这一步会直接失败。
 
 ### build（仅 main / 手动触发）
 
