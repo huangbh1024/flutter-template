@@ -3,7 +3,8 @@ name: Release
 # 推送 v* tag 时构建 Android APK 与 iOS IPA，并创建 GitHub Release。
 # 规则（详见 docs/CI.md）：
 # - tag 去掉前缀 v 后必须与 pubspec.yaml 的 version（不含 +build）一致；
-# - 发布产物必须是正式签名，缺少签名 secrets 时直接失败，避免发布不可安装的包。
+# - 发布产物必须是正式签名，缺少签名 secrets 时直接失败，避免发布不可安装的包；
+# - 签名导入与校验复用 .github/actions/android-signing / ios-signing。
 
 on:
   push:
@@ -42,6 +43,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
     steps:
       - uses: actions/checkout@v7
 
@@ -65,23 +72,9 @@ jobs:
         run: flutter pub get
 
       - name: Import signing assets
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "::error::发布需要配置 Android 签名 secrets（见 docs/CI.md）"
-            exit 1
-          fi
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
-          cat > android/key.properties <<PROPS
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyPassword=$ANDROID_KEY_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          storeFile=upload-keystore.jks
-          PROPS
+        uses: ./.github/actions/android-signing
+        with:
+          required: 'true'
 
       - name: Build release APK (arm64)
         run: flutter build apk --release --target-platform android-arm64
@@ -92,6 +85,7 @@ jobs:
           name: release-apk
           path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
   ios:
@@ -116,43 +110,13 @@ jobs:
         run: flutter pub get
 
       - name: Import signing assets
-        run: |
-          if [ -z "$IOS_CERTIFICATE_BASE64" ]; then
-            echo "::error::发布需要配置 iOS 签名 secrets（见 docs/CI.md）"
-            exit 1
-          fi
-          KEYCHAIN=build.keychain-db
-          security create-keychain -p actions "$KEYCHAIN"
-          security default-keychain -s "$KEYCHAIN"
-          security list-keychains -d user -s "$KEYCHAIN"
-          security unlock-keychain -p actions "$KEYCHAIN"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          echo "$IOS_CERTIFICATE_BASE64" | base64 --decode > /tmp/cert.p12
-          security import /tmp/cert.p12 -k "$KEYCHAIN" \
-            -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: \
-            -s -k actions "$KEYCHAIN"
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode \
-            > ~/Library/MobileDevice/Provisioning\ Profiles/template.mobileprovision
+        uses: ./.github/actions/ios-signing
+        with:
+          required: 'true'
+          export-method: ${{ env.IOS_EXPORT_METHOD }}
 
       - name: Build IPA
-        run: |
-          cat > ios/ExportOptions.plist <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>$IOS_EXPORT_METHOD</string>
-            <key>teamID</key>
-            <string>$IOS_TEAM_ID</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-          </dict>
-          </plist>
-          PLIST
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload IPA
         uses: actions/upload-artifact@v7
@@ -160,6 +124,7 @@ jobs:
           name: release-ipa
           path: build/ios/ipa/*.ipa
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
   publish:
@@ -180,6 +145,9 @@ jobs:
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          # 本 job 没有 checkout，工作目录不是 git 仓库；gh 只认 GH_REPO，
+          # 不会读 GITHUB_REPOSITORY，缺了这一行会报 "not a git repository"。
+          GH_REPO: ${{ github.repository }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" dist/*.apk dist/*.ipa --clobber

@@ -8,6 +8,8 @@
 | Flutter iOS | `.github/workflows/flutter-ios.yml` | iOS IPA |
 | Release | `.github/workflows/release.yml` | tag 发布：签名 APK / IPA + GitHub Release |
 | Setup Flutter | `.github/actions/setup-flutter/action.yml` | 安装固定版本 Flutter，缓存 SDK 与 pub 依赖 |
+| Android Signing | `.github/actions/android-signing/action.yml` | 导入 Android release 签名；正式发布缺少 secrets 时失败 |
+| iOS Signing | `.github/actions/ios-signing/action.yml` | 导入证书与描述文件，生成带 `provisioningProfiles` 的 ExportOptions |
 
 ## 触发
 
@@ -79,8 +81,10 @@ paths-ignore:
 1. Java 21 + Flutter（复用 Setup Flutter）
 2. 安装 Android SDK `platforms;android-36`、`build-tools;36.0.0`
 3. `flutter pub get`
-4. 若配置了 Android 签名 secrets，生成 `android/key.properties` 与
-   `android/app/upload-keystore.jks`；未配置则回退 debug 签名
+4. 调用 `.github/actions/android-signing` 导入签名：生成 `android/key.properties`
+   与 `android/app/upload-keystore.jks`。未配置 secrets 时回退 debug 签名
+   （`release.yml` 传 `required: true`，缺失直接失败）。secrets 以 job 级 `env`
+   传入，因为复合 action 读不到 `secrets` 上下文
 5. `flutter build apk --release --target-platform android-arm64`
 6. 上传 APK Artifact，保留 7 天；签名方式写入 Step Summary
 
@@ -98,10 +102,11 @@ flutter build appbundle --release
 
 1. `macos-latest` + Flutter（复用 Setup Flutter）
 2. `flutter pub get`
-3. 若配置了 iOS 签名 secrets：
-   - 导入证书到临时 keychain；
-   - 安装描述文件；
-   - 根据 `IOS_EXPORT_METHOD` 生成 `ios/ExportOptions.plist`；
+3. 若配置了 iOS 签名 secrets，调用 `.github/actions/ios-signing`：
+   - 导入证书到临时 keychain，安装描述文件；
+   - 从描述文件读出 profile 名称，从 `ios/Runner.xcodeproj` 读出 Bundle ID，
+     按 `IOS_EXPORT_METHOD` 生成带 `provisioningProfiles` 映射的
+     `ios/ExportOptions.plist`；
    - `flutter build ipa --release --export-options-plist=ios/ExportOptions.plist`
 4. 若未配置签名 secrets：
    - `flutter build ios --release --no-codesign`；
@@ -123,8 +128,9 @@ secrets，或下载构建产物后在本地用 Xcode 重新签名导出。
 
 > 如 `flutter build ipa` 报 “No signing certificate / provisioning profile”，
 > 检查证书与描述文件是否匹配 `ios/Runner.xcodeproj` 里的
-> `PRODUCT_BUNDLE_IDENTIFIER`。手动签名场景可能需要在 `ExportOptions.plist`
-> 中补充 `provisioningProfiles` 映射，按 Xcode 导出的模板填写。
+> `PRODUCT_BUNDLE_IDENTIFIER`。`provisioningProfiles` 映射已由
+> `.github/actions/ios-signing` 自动写入；描述文件名称与 Bundle ID 不匹配时
+> 会先在导入步骤报错。
 
 ## Release 流程（tag 发布）
 

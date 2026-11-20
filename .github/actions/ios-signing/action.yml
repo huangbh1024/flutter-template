@@ -1,0 +1,108 @@
+name: iOS Signing
+description: 导入 iOS 签名证书与描述文件，并生成带 provisioningProfiles 映射的 ExportOptions.plist
+
+# 调用方需在 job 级别提供以下环境变量（来自 secrets / variables）：
+# IOS_CERTIFICATE_BASE64 / IOS_CERTIFICATE_PASSWORD /
+# IOS_PROVISIONING_PROFILE_BASE64 / IOS_TEAM_ID。
+inputs:
+  required:
+    description: '为 true 时缺少签名 secrets 直接失败（正式发布）'
+    required: false
+    default: 'false'
+  export-method:
+    description: 'app-store-connect / release-testing / ad-hoc / development'
+    required: false
+    default: 'app-store-connect'
+  bundle-id:
+    description: '应用 Bundle ID；留空时从 ios/Runner.xcodeproj 读取'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Import signing assets
+      shell: bash
+      env:
+        SIGNING_REQUIRED: ${{ inputs.required }}
+        EXPORT_METHOD: ${{ inputs.export-method }}
+        BUNDLE_ID_INPUT: ${{ inputs.bundle-id }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "${IOS_CERTIFICATE_BASE64:-}" ]; then
+          if [ "$SIGNING_REQUIRED" = "true" ]; then
+            echo "::error::发布需要配置 iOS 签名 secrets（见 docs/CI.md）"
+            exit 1
+          fi
+          echo "::notice::未配置 iOS 签名 secrets，跳过签名导入"
+          exit 0
+        fi
+
+        for name in IOS_CERTIFICATE_PASSWORD IOS_PROVISIONING_PROFILE_BASE64 IOS_TEAM_ID; do
+          if [ -z "${!name:-}" ]; then
+            echo "::error::已配置证书，但缺少 $name（见 docs/CI.md）"
+            exit 1
+          fi
+        done
+
+        KEYCHAIN=build.keychain-db
+        security create-keychain -p actions "$KEYCHAIN"
+        security default-keychain -s "$KEYCHAIN"
+        security list-keychains -d user -s "$KEYCHAIN"
+        security unlock-keychain -p actions "$KEYCHAIN"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN"
+        printf '%s' "$IOS_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+        security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+          -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+        security set-key-partition-list -S apple-tool:,apple:,codesign: \
+          -s -k actions "$KEYCHAIN"
+
+        PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+        mkdir -p "$PROFILE_DIR"
+        PROFILE_PATH="$PROFILE_DIR/template.mobileprovision"
+        printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+
+        # manual 导出必须按 Bundle ID 指定 profile 名称，否则 xcodebuild 会报
+        # "No profiles for 'xxx' were found"。
+        security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+        PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' \
+          "$RUNNER_TEMP/profile.plist" || true)"
+        if [ -z "$PROFILE_NAME" ]; then
+          echo "::error::无法从描述文件读取 Name，请检查 IOS_PROVISIONING_PROFILE_BASE64"
+          exit 1
+        fi
+
+        BUNDLE_ID="$BUNDLE_ID_INPUT"
+        if [ -z "$BUNDLE_ID" ]; then
+          # 取应用 target 的 Bundle ID；RunnerTests 的带 .RunnerTests 后缀，先排除。
+          BUNDLE_ID="$(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' \
+            ios/Runner.xcodeproj/project.pbxproj \
+            | grep -v 'RunnerTests' | head -n1 \
+            | sed -e 's/.*= //' -e 's/;$//' -e 's/"//g' || true)"
+        fi
+        if [ -z "$BUNDLE_ID" ]; then
+          echo "::error::无法从 ios/Runner.xcodeproj 读取 Bundle ID，请通过 bundle-id 传入"
+          exit 1
+        fi
+
+        # 用 printf 生成 XML，避免描述文件名称里的 & 或 < 破坏 plist。
+        xml_escape() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+        {
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n'
+          printf '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+          printf '<plist version="1.0">\n<dict>\n'
+          printf '  <key>method</key>\n  <string>%s</string>\n' \
+            "$(printf '%s' "$EXPORT_METHOD" | xml_escape)"
+          printf '  <key>teamID</key>\n  <string>%s</string>\n' \
+            "$(printf '%s' "$IOS_TEAM_ID" | xml_escape)"
+          printf '  <key>signingStyle</key>\n  <string>manual</string>\n'
+          printf '  <key>provisioningProfiles</key>\n  <dict>\n'
+          printf '    <key>%s</key>\n    <string>%s</string>\n' \
+            "$(printf '%s' "$BUNDLE_ID" | xml_escape)" \
+            "$(printf '%s' "$PROFILE_NAME" | xml_escape)"
+          printf '  </dict>\n</dict>\n</plist>\n'
+        } > ios/ExportOptions.plist
+
+        echo "签名：profile **$PROFILE_NAME** / method **$EXPORT_METHOD** / $BUNDLE_ID" \
+          >> "$GITHUB_STEP_SUMMARY"

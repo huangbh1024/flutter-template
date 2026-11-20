@@ -1,0 +1,51 @@
+name: Android Signing
+description: 导入 Android release 签名；未配置 secrets 时按 required 决定失败或回退 debug 签名
+
+# 调用方需在 job 级别提供以下环境变量（来自 secrets）：
+# ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS /
+# ANDROID_KEY_PASSWORD。复合 action 读不到 secrets 上下文，只能经由 env 传入。
+inputs:
+  required:
+    description: '为 true 时缺少签名 secrets 直接失败（正式发布），否则回退 debug 签名'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Import signing assets
+      shell: bash
+      env:
+        SIGNING_REQUIRED: ${{ inputs.required }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+          if [ "$SIGNING_REQUIRED" = "true" ]; then
+            echo "::error::发布需要配置 Android 签名 secrets（见 docs/CI.md）"
+            exit 1
+          fi
+          echo "::notice::未配置签名 secrets，本次使用 debug 签名（仅适合内测）"
+          echo "签名：未配置 secrets，本次为 **debug 签名**，仅适合内测。" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+
+        # 四个 secret 必须齐全，否则 Gradle 只会报一个看不懂的密码错误。
+        for name in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+          if [ -z "${!name:-}" ]; then
+            echo "::error::已配置 ANDROID_KEYSTORE_BASE64，但缺少 $name"
+            exit 1
+          fi
+        done
+
+        # 逐行 printf 写入：heredoc 会展开密码里的 $、反引号和反斜杠，把密码改坏。
+        umask 077
+        {
+          printf 'storePassword=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+          printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
+          printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+          printf 'storeFile=upload-keystore.jks\n'
+        } > android/key.properties
+        printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+
+        echo "签名：使用仓库配置的 **release 签名**。" >> "$GITHUB_STEP_SUMMARY"
