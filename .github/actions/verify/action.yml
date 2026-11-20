@@ -1,0 +1,28 @@
+name: Verify
+description: 格式检查、静态分析与单元测试；PR 与合并后的必过检查
+
+# 共享的检查流程：Android 工作流的 verify job 与调试包工作流都调用这里，
+# 避免同一套检查在多处维护、改漏。
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-flutter
+
+    # 使用 --enforce-lockfile：pubspec.lock 已入库，依赖解析结果不允许在 CI
+    # 里悄悄漂移；改了 pubspec 却没提交 lock 时，这一步会直接失败。
+    - name: Pub get
+      shell: bash
+      run: flutter pub get --enforce-lockfile
+
+    - name: Analyze
+      shell: bash
+      run: flutter analyze
+
+    - name: Test
+      shell: bash
+      run: flutter test
+
+    # analyze 不检查格式；放在最后，先暴露 analyze / test 的问题。
+    - name: Format check
+      shell: bash
+      run: dart format --output=none --set-exit-if-changed lib test
