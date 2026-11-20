@@ -1,6 +1,6 @@
 # CI 构建（GitHub Actions）
 
-本模板包含四个工作流和一个共用 action：
+本模板包含四个工作流和四个共用 action：
 
 | 工作流 / action | 文件 | 职责 |
 | --- | --- | --- |
@@ -9,6 +9,7 @@
 | Flutter Debug APK | `.github/workflows/flutter-debug-apk.yml` | 带调试面板的 profile APK（内测用） |
 | Release | `.github/workflows/release.yml` | tag 发布：签名 APK / IPA + GitHub Release |
 | Setup Flutter | `.github/actions/setup-flutter/action.yml` | 安装固定版本 Flutter，缓存 SDK 与 pub 依赖 |
+| Verify | `.github/actions/verify/action.yml` | 共享检查：pub get / analyze / test / format |
 | Android Signing | `.github/actions/android-signing/action.yml` | 导入 Android release 签名；正式发布缺少 secrets 时失败 |
 | iOS Signing | `.github/actions/ios-signing/action.yml` | 导入证书与描述文件，生成带 `provisioningProfiles` 的 ExportOptions |
 
@@ -117,6 +118,8 @@ flutter build appbundle --release
 - 构建：`flutter build apk --profile --dart-define=ISPECT_ENABLED=true
   --target-platform android-arm64`。ISpect 的开关是编译期常量，缺少 define 时面板
   不会挂载；profile 模式 `kReleaseMode=false`，面板可用；
+- verify 阶段复用 `.github/actions/verify`，并带
+  `--dart-define=ISPECT_ENABLED=true` 跑测试，面板挂载出错会让构建先失败；
 - 产物：`<repo>-debug-apk-<run>-<sha>`，保留 7 天；
 - 签名：profile 构建类型继承 debug 签名，与 main 的 release 包签名不同，
   **安装前先卸载设备上的旧包**；

@@ -19,6 +19,8 @@ gh run download <run-id> --dir ~/Downloads
 - 构建命令：`flutter build apk --profile --dart-define=ISPECT_ENABLED=true
   --target-platform android-arm64`；
 - profile 模式 `kReleaseMode=false`，面板可用；Artifact 保留 7 天；
+- verify 阶段会跑 `flutter test --dart-define=ISPECT_ENABLED=true`，面板挂载
+  出错会直接让构建失败，不会等到装到手机上才发现；
 - **安装前先卸载设备上的旧包**：profile 构建继承 debug 签名，与 main 的
   release 包签名不同，无法覆盖安装；
 - iOS：未配置签名 secrets 时 CI 只产出未签名 IPA，不能安装。要测 iOS 需先配

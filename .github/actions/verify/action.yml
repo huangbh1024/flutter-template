@@ -3,6 +3,12 @@ description: 格式检查、静态分析与单元测试；PR 与合并后的必�
 
 # 共享的检查流程：Android 工作流的 verify job 与调试包工作流都调用这里，
 # 避免同一套检查在多处维护、改漏。
+inputs:
+  test-args:
+    description: '追加给 flutter test 的参数，例如 --dart-define=ISPECT_ENABLED=true'
+    required: false
+    default: ''
+
 runs:
   using: composite
   steps:
@@ -20,7 +26,7 @@ runs:
 
     - name: Test
       shell: bash
-      run: flutter test
+      run: flutter test ${{ inputs.test-args }}
 
     # analyze 不检查格式；放在最后，先暴露 analyze / test 的问题。
     - name: Format check
